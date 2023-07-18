@@ -36,10 +36,10 @@ export default plugins;
 ## 界面 demo
 
 生成 cpuprofile
-![cpuprofile]()
+![cpuprofile](https://github.com/yunke-yunfly/yunfly-plugin-v8-profiler/blob/master/img/1672737934692-image.png?raw=true)
 
 在线分析
-![在线分析]()
+![在线分析](https://github.com/yunke-yunfly/yunfly-plugin-v8-profiler/blob/master/img/1672738014201-image.png?raw=true)
 
 ## 操作指引
 
