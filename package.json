@@ -1,6 +1,6 @@
 {
   "name": "@yunflyjs/yunfly-plugin-v8-profiler",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "yunfly v8-profiler plugin, online analysis of cpuprofile.",
   "main": "./dist/sdk/index.js",
   "typings": "dist/sdk/index.d.ts",
