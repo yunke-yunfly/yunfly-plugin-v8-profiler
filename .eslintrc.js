@@ -19,5 +19,10 @@ module.exports = {
     'no-eval': 0,
     'import/order': 0
   },
-  ignorePatterns: ['src/__tests__/**', 'rollup.config.js', 'commitlint.config.js'],
+  ignorePatterns: [
+    'src/__tests__/**', 
+    'rollup.config.js', 
+    'commitlint.config.js',
+    'src/static/**'
+  ],
 };

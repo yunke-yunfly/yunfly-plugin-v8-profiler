@@ -33,7 +33,14 @@
     "changelog",
     "sendmessage",
     "resaction",
-    "emmiter"
+    "emmiter",
+    "cpuprofile",
+    "middlewares",
+    "Cupprofile",
+    "deleteall",
+    "perfix",
+    "speedscope",
+    "querypath"
   ],
   "ignorePaths": [
     "package.json",
@@ -42,6 +49,7 @@
     "coverage/**",
     ".eslintrc.js",
     "cspell.json",
-    "dist/**"
+    "dist/**",
+    "src/static/**"
   ]
 }

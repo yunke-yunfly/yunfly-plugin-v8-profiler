@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>性能分析</title>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+      box-sizing: content-box;
+    }
+
+    .header {
+      background-color: #2a2a2a;
+      padding: 10px 20px;
+      line-height: 60px;
+      border-bottom: solid 1px #ddd;
+      font-size: 22px;
+      color: #fff;
+    }
+
+    .aside-left {
+      padding: 30px 10px;
+      background: #fdfdfd;
+      height: 93.5vh;
+      border-right: solid 1px #ddd;
+    }
+
+    .aside-left .btns button {
+      display: block;
+      margin: 10px auto 20px;
+    }
+
+    .aside-left .cluster {
+      margin-bottom: 30px;
+      border-bottom: solid 1px #ddd;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .aside-left .cpuprofile {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: solid 1px #ddd;
+      margin-bottom: 20px;
+    }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+
+<body>
+  <div id="app">
+    <el-container>
+      <el-header class="header">Yunfly cpuprofile 收集插件</el-header>
+      <el-container>
+        <el-aside width="30%" class="aside-left">
+          <el-row class="cluster" v-if="navs.length">
+            当前进程：
+            <el-select v-model="value" placeholder="请选择">
+              <el-option v-for="item in navs" :key="item.type" :label="item.type" :value="item.type">
+              </el-option>
+            </el-select>
+          </el-row>
+          <div v-if="!navs.length" class="cpuprofile">抓取 cpuprofile 文件</div>
+          <el-row class="btns" style="margin-bottom:80px;text-align:center">
+            <el-button :loading="index===1" :disabled="isGen && index!==1" @click="genCpuProfile(1,10)" type="primary"
+              round>gen cpuprofile({{index===1 && countTime ? countTime + 's' : '10s'}})</el-button>
+            <el-button :loading="index===2" :disabled="isGen && index!==2" @click="genCpuProfile(2,30)" type="primary"
+              round>gen cpuprofile({{index===2 && countTime ? countTime + 's' : '30s'}})</el-button>
+            <el-button :loading="index===3" :disabled="isGen && index!==3" @click="genCpuProfile(3,60)" type="primary"
+              round>gen cpuprofile({{index===3 && countTime ? countTime + 's' : '1m'}})</el-button>
+            <el-button :loading="index===4" :disabled="isGen && index!==4" @click="genCpuProfile(4,120)" type="primary"
+              round>gen cpuprofile({{index===4 && countTime ? countTime + 's' : '2m'}})</el-button>
+            <el-button :loading="index===5" :disabled="isGen && index!==5" @click="genCpuProfile(5,300)" type="primary"
+              round>gen cpuprofile({{index===5 && countTime ? countTime + 's' : '5m'}})</el-button>
+          </el-row>
+        </el-aside>
+        <el-main>
+          <el-row style="margin-bottom:30px;">
+            <el-col :span="20">
+              <h2>已生成的 cpuprofile 列表</h2>
+            </el-col>
+            <el-col :span="4"><el-button type="danger" @click="deleteallCpuProfile()">清除所有文件</el-button></el-col>
+          </el-row>
+          <template>
+            <el-table :data="tableData" style="width: 100%">
+              <el-table-column type="index" label="编号" width="200" :index="indexMethod">
+              </el-table-column>
+              <el-table-column prop="fileName" label="文件名">
+              </el-table-column>
+              <el-table-column fixed="right" label="操作" width="200">
+                <template slot-scope="scope">
+                  <el-button style="color:red" @click="speedscopeOnline(scope.row)" type="text"
+                    size="small">在线分析</el-button>
+                  <el-button type="text" size="small" @click="downloadCpuProfile(scope.row)">下载</el-button>
+                  <el-button type="text" size="small" @click="deleteCpuProfile(scope.row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
+
+  <script>
+    const appName = '<%= appName%>';
+    const isCluster = '<%= isCluster%>'
+    const navs = isCluster === '1' ? [{ type: 'master' }, { type: 'worker' }] : []
+    const value = isCluster === '1' ? 'master' : ''
+    const apiPerfix = appName ? `/${appName}/v8-profiler/cpuprofile` : '/v8-profiler/cpuprofile';
+    let timer = null;
+    var app = new Vue({
+      el: '#app',
+      data() {
+        return {
+          countTime: 0,
+          isGen: false,
+          index: -1,
+          tableData: [],
+          navs,
+          value
+        }
+      },
+      mounted: function () {
+        this.$nextTick(function () {
+          this.getDataList();
+        })
+      },
+      methods: {
+        handleClick(tab, event) {
+          console.log(tab, event);
+        },
+        counterTimer(countTimeNum = 0) {
+          this.countTime = countTimeNum;
+          if (this.countTime > 0) {
+            timer = setInterval(() => {
+              if (this.countTime <= 0) {
+                this.countTime = 0;
+                clearInterval(timer)
+              }
+              this.countTime = this.countTime - 1;
+            }, 1000)
+          } else {
+            this.countTime = 0;
+            clearInterval(timer)
+          }
+        },
+        indexMethod(index) {
+          return index + 1;
+        },
+        async genCpuProfile(num, time = 0) {
+          this.counterTimer(time);
+          this.index = num;
+          this.isGen = true;
+          const res = await axios.get(apiPerfix + `?time=${time}&type=${this.value}`);
+          this.countTime = 0;
+          clearInterval(timer);
+          if ((res?.data?.data || res?.data) === true) {
+            this.$message({
+              message: 'cpuprofile 生成成功!',
+              type: 'success'
+            });
+            this.getDataList();
+          }
+          else {
+            this.$message.error('cpuprofile 生成失败，你可以尝试重试！');
+          }
+          this.index = -1;
+          this.isGen = false;
+        },
+        async getDataList() {
+          const res = await axios.get(apiPerfix + '/list');
+          const result = res?.data?.data || res?.data;
+          if (Array.isArray(result)) {
+            this.tableData = result;
+          }
+        },
+        deleteCpuProfile(item) {
+          this.$confirm('确定删除当前 cpuprofile 文件吗?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(async () => {
+            const res = await axios.post(apiPerfix + '/delete', { file: item.file });
+            if ((res?.data?.data || res?.data) === true) {
+              this.$message({ message: '删除成功!', type: 'success' });
+              this.getDataList();
+            } else {
+              this.$message.error('删除失败,请重试！');
+            }
+          })
+        },
+        deleteallCpuProfile() {
+          this.$confirm('确定删除所有 cpuprofile 文件吗?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(async () => {
+            const res = await axios.post(apiPerfix + '/deleteall');
+            if ((res?.data?.data || res?.data) === true) {
+              this.$message({ message: '删除成功!', type: 'success' });
+              this.getDataList();
+            } else {
+              this.$message.error('删除失败,请重试！');
+            }
+          })
+        },
+        async downloadCpuProfile(item) {
+          window.open(apiPerfix + `/downloads?file=${item.file}&fileName=${item.fileName}`);
+        },
+        async speedscopeOnline(item) {
+          const res = await axios.get(apiPerfix + '/online?file=' + item.file);
+          const url = res?.data?.data || res?.data
+          if (url.includes('://')) {
+            window.open(url);
+            this.$message({ message: '操作成功!', type: 'success' });
+          } else {
+            this.$message.error('操作失败,请重试！');
+          }
+        }
+      }
+    })
+  </script>
+</body>
+
+</html>
